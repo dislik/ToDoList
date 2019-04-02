@@ -10,10 +10,18 @@ import UIKit
 
 class ToDoListViewController: UITableViewController {
 
-    let itemArray = ["Find Mike", "Buy Eggs", "Destroy Demogorgon"]
+    var itemArray = ["Find Mike", "Buy Eggs", "Destroy Demogorgon"]
+    let itemArrayStoreName = "ToDoListValues"
+    
+    let defaults = UserDefaults.standard
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        if let initArray = defaults.array(forKey: itemArrayStoreName) as? [String] {
+        //if initArray.count > 0 {
+            itemArray = initArray
+        }
     }
 
     //MARK - TableView DataSource Methods
@@ -44,5 +52,32 @@ class ToDoListViewController: UITableViewController {
         //let text = cell?.textLabel?.text ?? ""  //itemArray[indexPath.row]
         //print("You've clicked on:  \(indexPath.row). \(text)")
     }
+    
+    //MARK - Add New Items
+    
+    @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
+        let alert = UIAlertController(title: "Add New ToDoey Item", message: "", preferredStyle: .alert)
+        
+        var textField = UITextField()
+        let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
+            guard let text = textField.text else { return }
+            //what will happen once the user clicks the Add Item button on out UIAlert
+            if (!text.isEmpty) {
+                self.itemArray.append(text)
+                self.defaults.set(self.itemArray, forKey: self.itemArrayStoreName)
+                
+                self.tableView.reloadData()
+                //print("Smth had to be added: \(text)")
+            }
+        }
+        
+        alert.addTextField { (alertTextField) in
+            alertTextField.placeholder = "Create new item"
+            textField = alertTextField
+        }
+        alert.addAction(action)
+        present(alert, animated: true, completion: nil)
+    }
+    
 }
 
