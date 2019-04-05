@@ -10,19 +10,24 @@ import UIKit
 
 class ToDoListViewController: UITableViewController {
 
-    var itemArray = [Item("Find Mike", false), Item("Buy Eggs", false), Item("Destroy Demogorgon", false)]
-    //[Item]()
+    var itemArray = [Item]()
     let itemArrayStoreName = "ToDoListValues"
+    let DATA_FILE_PATH = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
     
-    let defaults = UserDefaults.standard
+    //don't use it      let defaults = UserDefaults.standard
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        //if let initArray = defaults.array(forKey: itemArrayStoreName) as? [String] {
-        if let items = defaults.object(forKey: itemArrayStoreName) as? [Item] {
-            itemArray = items
-        }
+        
+        print("DATA_FILE_PATH: \(DATA_FILE_PATH)")
+        
+        //if let items = defaults.object(forKey: itemArrayStoreName) as? [Item] {
+            //itemArray = items
+        //} else {
+        //itemArray = [Item("Find Mike", false), Item("Buy Eggs", false), Item("Destroy Demogorgon", false)]
+        loadItems()
+        //}
     }
 
     //MARK - TableView DataSource Methods
@@ -45,6 +50,7 @@ class ToDoListViewController: UITableViewController {
         print("ToDoListViewController:      didSelectRowAt")
         
         itemArray[indexPath.row].done = !itemArray[indexPath.row].done
+        saveDataTo(itemArray, path: DATA_FILE_PATH!)
         tableView.reloadData()
         
         tableView.deselectRow(at: indexPath, animated: true)
@@ -61,7 +67,9 @@ class ToDoListViewController: UITableViewController {
             //what will happen once the user clicks the Add Item button on out UIAlert
             if (!text.isEmpty) {
                 self.itemArray.append(Item(text, false))
-                self.defaults.set(self.itemArray, forKey: self.itemArrayStoreName)
+                //self.defaults.set(self.itemArray, forKey: self.itemArrayStoreName)
+                
+                self.saveDataTo(self.itemArray, path: self.DATA_FILE_PATH!)
                 
                 self.tableView.reloadData()
                 //print("Smth had to be added: \(text)")
@@ -76,5 +84,27 @@ class ToDoListViewController: UITableViewController {
         present(alert, animated: true, completion: nil)
     }
     
+    //saveDataTo(self.itemArray, self.DATA_FILE_PATH!)
+    func saveDataTo(_ data: [Encodable], path: URL) {
+        let encoder = PropertyListEncoder()
+        
+        do {
+            //let encodeData = try encoder.encode(data)
+            let encodeData = try encoder.encode(itemArray)
+            try encodeData.write(to: path)
+        } catch {
+            print("Error encoding data array")
+        }
+    }
+    
+    func loadItems() {
+        if let data = try? Data(contentsOf: DATA_FILE_PATH!) {
+            let decoder = PropertyListDecoder()
+            do {
+                itemArray = try decoder.decode([Item].self, from: data)
+            } catch {
+                print("The error has happened while decoding data from Property List...")
+            }
+        }
+    }
 }
-
