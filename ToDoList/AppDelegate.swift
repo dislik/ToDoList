@@ -19,6 +19,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         //print(Realm.Configuration.defaultConfiguration.fileURL)
         do {
             _ = try Realm()
+            // delete all from db
+            /*
+            let realm = try Realm()
+            try! realm.write {
+                realm.deleteAll()
+            }
+             */
             
         } catch {
             print("Error initialising new realm, \(error)")
@@ -39,12 +46,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             print("Error initialising new realm, \(error)")
         }
         */
-        print("AppDelegate:   didFinishLaunchingWithOptions")
         return true
-    }
-
-    func applicationWillTerminate(_ application: UIApplication) {
-        print("AppDelegate:   applicationWillTerminate")
-        //self.saveContext()
     }
 }

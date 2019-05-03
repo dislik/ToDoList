@@ -7,10 +7,11 @@
 //
 
 import UIKit
-import CoreData
 import RealmSwift
+import SwipeCellKit
+import ChameleonFramework
 
-class CategoryViewController: UITableViewController {
+class CategoryViewController: SwipeTableViewController {
 
     let realm = try! Realm()
     var categories: Results<Category>?
@@ -26,10 +27,9 @@ class CategoryViewController: UITableViewController {
         let action = UIAlertAction(title: "Add Category", style: .default) { (action) in
             guard let text = textField.text else { return }
             if !text.isEmpty {
-                //let newCategory = Category(name: text)
-                
                 let newCategory = Category()
                 newCategory.name = text
+                newCategory.colour = UIColor.randomFlat.hexValue()
                 
                 self.save(category: newCategory)
             }
@@ -51,9 +51,15 @@ class CategoryViewController: UITableViewController {
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCell", for: indexPath)
-        cell.textLabel?.text = categories?[indexPath.row].name ?? "No Categories Added Yet"
-        
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
+        let category = categories?[indexPath.row]
+        cell.textLabel?.text = category?.name ?? "No Categories Added Yet"
+        guard let hexColor = category?.colour, let backgroundColor = UIColor(hexString: hexColor) else {
+            fatalError()
+        }
+        cell.backgroundColor = backgroundColor
+        cell.textLabel?.textColor = ContrastColorOf(backgroundColor, returnFlat: true)
+    
         return cell
     }
     
@@ -82,17 +88,23 @@ class CategoryViewController: UITableViewController {
         tableView.reloadData()
     }
 
-    func loadCategories(/*with request : NSFetchRequest<Category> = Category.fetchRequest()*/) {
+    func loadCategories() {
         print("in  CategoryViewController.loadCategories")
         categories = realm.objects(Category.self)
-        /*
-        do {
-            categoryArray = try context.fetch(request)
-        } catch {
-            print("Error fetching data from context \(error)")
-        }
-        */
         tableView.reloadData()
+    }
+    
+    override func updateModel(at indexPath: IndexPath) {
+        super.updateModel(at: indexPath)
+        guard let cellForDeletion = categories?[indexPath.row] else { return }
+        do {
+            try realm.write {
+                realm.delete(cellForDeletion)
+            }
+            //tableView.reloadData() leads to exception SIGABRT
+        } catch {
+            print("Error while deleting the category \(cellForDeletion.name): \(error)")
+        }
     }
     // MARK: - Navigation
 }

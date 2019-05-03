@@ -8,13 +8,14 @@
 
 import UIKit
 import RealmSwift
+import ChameleonFramework
 
-class ToDoListViewController: UITableViewController {
-    
+class ToDoListViewController: SwipeTableViewController {
     let realm = try! Realm()
-
     var toDoItems: Results<Item>?
     
+    @IBOutlet weak var searchBar: UISearchBar!
+
     var selectedCategory : Category? {
         didSet {
             loadItems()
@@ -23,32 +24,62 @@ class ToDoListViewController: UITableViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        
-        /*
-        let DATA_FILE_PATH = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
-        print("DATA_FILE_PATH: \(DATA_FILE_PATH)")
-        */
-        //searchBar.delegate = self
+        tableView.separatorStyle = .none
+        //let DATA_FILE_PATH = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+        //print("DATA_FILE_PATH: \(DATA_FILE_PATH)")
     }
 
+    override func viewWillAppear(_ animated: Bool) {
+        
+        guard let hexColor = selectedCategory?.colour else {
+            fatalError("SelectedCategory.colour is empty !")
+        }
+        updateNavigationBar(withHexCode: hexColor)
+        searchBar.barTintColor = navigationController?.navigationBar.barTintColor
+        
+        title = selectedCategory!.name
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        updateNavigationBar(withHexCode: "28AAC0")
+        
+        //navBar.tintColor = FlatWhite()
+        //navBar.largeTitleTextAttributes = [NSAttributedString.Key.foregroundColor : FlatWhite()]
+    }
+    
+    //MARK: - Navigation Bar Setup Methods
+    func updateNavigationBar(withHexCode hexColor: String) {
+        guard let navBar = navigationController?.navigationBar else {
+            fatalError("Navigation Controller does not exist.")
+        }
+        guard let barTintColor = UIColor(hexString: hexColor) else {
+            fatalError("Couldn't determine the color by hexString \(hexColor).")
+        }
+        
+        navBar.barTintColor = barTintColor
+        navBar.tintColor = ContrastColorOf(barTintColor, returnFlat: true)
+        navBar.largeTitleTextAttributes = [NSAttributedString.Key.foregroundColor : ContrastColorOf(barTintColor, returnFlat: true)]
+    }
+    
+    
     //MARK: - TableView DataSource Methods
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return toDoItems?.count ?? 1
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        print("ToDoListViewController:      cellForRowAt")
-        let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
         
         if let item = toDoItems?[indexPath.row] {
-            print("cell.textLabel: item != nil")
             cell.accessoryType = item.done ? .checkmark : .none
             cell.textLabel?.text = item.title
+            if let hexColor = selectedCategory?.colour {
+                cell.backgroundColor = UIColor(hexString: hexColor)?.darken(byPercentage: CGFloat(indexPath.row) / CGFloat(toDoItems!.count + 2))
+                cell.textLabel?.textColor = ContrastColorOf(cell.backgroundColor!, returnFlat: true)
+            }
         } else {
-            print("cell.textLabel: item == nil && \(cell.textLabel != nil)")
             cell.textLabel?.text = "No Items Added"
         }
-        
         return cell
     }
 
@@ -65,16 +96,6 @@ class ToDoListViewController: UITableViewController {
                 print("Error saving data status, \(error)")
             }
         }
-        //updating the field:
-        //itemArray[indexPath.row].setValue("Completed", forKey: "title")
-        //or
-        //itemArray[indexPath.row].done = !itemArray[indexPath.row].done
-        //delete the item
-        //let item = itemArray[indexPath.row]
-        //context.delete(item)
-        //items.remove(at: indexPath.row) //it's necessary for correct data viewing
-
-        //saveDataTo(items)
         tableView.deselectRow(at: indexPath, animated: true)
         tableView.reloadData()
     }
@@ -119,23 +140,25 @@ class ToDoListViewController: UITableViewController {
     
     //MARK: - Model Manipulation Methods
     func saveItem(item: Item) {
-        /*
-        do {
-            //try context.save()
-            try realm.write {
-                realm.add(item)
-            }
-        } catch {
-            print("Error saving new item")
-        }
-        */
         tableView.reloadData()
     }
 
-    func loadItems() { //with request : NSFetchRequest<Item> = Item.fetchRequest(), predicate : NSPredicate? = nil) {
-        print("in  ToDoListViewController.loadItems")
+    func loadItems() {
         toDoItems = selectedCategory?.items.sorted(byKeyPath: "title", ascending: true)
         tableView.reloadData()
+    }
+    
+    override func updateModel(at indexPath: IndexPath) {
+        super.updateModel(at: indexPath)
+        guard let cellForDeletion = selectedCategory?.items[indexPath.row] else { return }
+        do {
+            try realm.write {
+                realm.delete(cellForDeletion)
+            }
+            //tableView.reloadData() leads to exception SIGABRT
+        } catch {
+            print("Error while deleting the item \(cellForDeletion.title): \(error)")
+        }
     }
 }
 
@@ -152,20 +175,6 @@ extension ToDoListViewController: UISearchBarDelegate {
             } else {
                 loadItems()
             }
-            /*let request : NSFetchRequest<Item> = Item.fetchRequest()
-            var predicate : NSPredicate?
-            
-                predicate = NSPredicate(format: "%K CONTAINS[cd] %@", "title", searchText)
-                
-                let sortDescriptor = NSSortDescriptor(key: "title", ascending: true)
-                request.sortDescriptors = [sortDescriptor]
-            } else {
-                DispatchQueue.main.async {
-                    searchBar.resignFirstResponder()    
-                }
-            }
-             loadItems(with: request, predicate: predicate)
-            */
         } else {
             print("What do you want to say by this ?")
         }
